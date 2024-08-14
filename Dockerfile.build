@@ -2,11 +2,12 @@ FROM ebbe52e5/bitcoin-base:v1.0
 LABEL maintainer="ETHAN LIU <ebbe52e5@gmail.com>"
 LABEL description="Bitcoin Core Docker Image"
 
-ENV DISABLE_WALLET
+ENV DISABLE_WALLET=0
 ENV BUILD_JETS=2
 
+ENV SRC_DIR=/usr/local/src/bitcoin
 ENV VERSION="26.0"
-ENV GITHUB_SOURCE_URL="https://github.com/satshub/bitcoin.git"
+ENV GITHUB_SOURCE_URL="https://github.com/bitcoin/bitcoin.git"
 ENV COIN_TMP="/var/tmp"
 ENV COIN_CONF_FILE="${COIN_ROOT_DIR}/config.conf"
 
@@ -17,8 +18,7 @@ RUN apt-get update -y \
         bsdmainutils \
         build-essential \
         git \
-        ${DISABLE_WALLET-libdb-dev} \
-        ${DISABLE_WALLET-libdb++-dev} \
+        vim \
         libboost-chrono-dev \
         libboost-filesystem-dev \
         libboost-system-dev \
@@ -42,32 +42,10 @@ RUN git clone -n $GITHUB_SOURCE_URL $SRC_DIR \
 
 RUN ./autogen.sh
 
-RUN mkdir $BUILDER_DIR
-
 RUN  ./configure \
-    ${DISABLE_WALLET---with-incompatible-bdb} \
-    ${DISABLE_WALLET+--disable-wallet} \
-    --disable-tests \
-    --disable-bench \
+    --with-incompatible-bdb \
     --without-gui \
-    --prefix=$BUILDER_DIR
-
-RUN V=1 make clean
+    --disable-tests \
+    --disable-bench 
 
 RUN V=1 make -j${BUILD_JETS}
-
-RUN make install
-
-COPY "docker-entrypoint.sh" /entrypoint.sh
-COPY "config.conf" "${COIN_CONF_FILE}"
-COPY "scripts/" "${COIN_SCRIPTS}/"
-
-RUN chown -R coinuser:coingroup "${COIN_ROOT_DIR}/"
-
-EXPOSE 8332 18332 18443 8333 18333 18444
-
-VOLUME ["${COIN_ROOT_DIR}"]
-
-ENTRYPOINT ["/entrypoint.sh"]
-
-CMD ["bitcoind"]
